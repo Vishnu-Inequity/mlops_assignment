@@ -70,6 +70,19 @@ def prepare_dataset(config: dict) -> pd.DataFrame:
     and removes deceased/hospice encounters to prevent target leakage and survival bias.
     """
     raw_path = config["data"]["raw_path"]
+    if not Path(raw_path).exists():
+        nested_path = Path("data/raw/input/dataset_diabetes/diabetic_data.csv")
+        if nested_path.exists():
+            raw_path = str(nested_path)
+        else:
+            logger.info("Raw data not found locally. Downloading UCI diabetes dataset...")
+            from src.ingestion.ingest import download_and_extract_data
+            url = os.getenv("DATA_SOURCE_URL", "https://archive.ics.uci.edu/ml/machine-learning-databases/00296/dataset_diabetes.zip")
+            download_and_extract_data(url, "data/raw/input")
+            if nested_path.exists() and not Path(config["data"]["raw_path"]).exists():
+                import shutil
+                shutil.copy(nested_path, config["data"]["raw_path"])
+
     logger.info(f"Loading raw data from: {raw_path}")
     df = pd.read_csv(raw_path)
 

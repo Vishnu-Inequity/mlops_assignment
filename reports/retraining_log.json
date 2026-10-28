@@ -37,5 +37,44 @@
       "false_negatives": 637
     },
     "champion_baseline_roc_auc": 0.6273
+  },
+  {
+    "timestamp": "2026-10-21 22:05:18",
+    "decision": "PROMOTED",
+    "action_summary": "Candidate passed all 5 gates. Promoted as production champion (version 2).",
+    "trigger_evaluation": {
+      "trigger_required": false,
+      "reason": "Distributions stable within calibrated thresholds."
+    },
+    "gate_criteria": {
+      "min_test_recall": 0.6,
+      "min_test_roc_auc": 0.6,
+      "max_test_brier_score": 0.12,
+      "max_test_ece": 0.05,
+      "max_roc_auc_drop": 0.03
+    },
+    "gate_checks": {
+      "recall_ge_60": true,
+      "roc_auc_ge_60": true,
+      "roc_auc_drop_acceptable": true,
+      "brier_score_acceptable": true,
+      "ece_acceptable": true
+    },
+    "candidate_metrics": {
+      "threshold": 0.1,
+      "recall": 0.6198,
+      "precision": 0.1495,
+      "specificity": 0.5519,
+      "f1": 0.2409,
+      "roc_auc": 0.6285,
+      "pr_auc": 0.1927,
+      "brier_score": 0.0973,
+      "ece": 0.006,
+      "true_positives": 1048,
+      "false_positives": 5960,
+      "true_negatives": 7341,
+      "false_negatives": 643
+    },
+    "champion_baseline_roc_auc": 0.6273
   }
 ]

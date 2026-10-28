@@ -199,9 +199,21 @@ def run_explainability_pipeline(config_path: str = "configs/config.yaml"):
     mlflow.set_experiment(config["mlflow"]["experiment_name"])
 
     run_id = best_artifact.get("run_id")
-    if run_id:
-        logger.info(f"Logging explainability artifacts to MLflow run {run_id}...")
-        with mlflow.start_run(run_id=run_id):
+    try:
+        if run_id:
+            logger.info(f"Logging explainability artifacts to MLflow run {run_id}...")
+            with mlflow.start_run(run_id=run_id):
+                mlflow.log_artifact(shap_results["plot_path"], artifact_path="explainability")
+                mlflow.log_artifact(str(reports_dir / "global_feature_importance.json"), artifact_path="explainability")
+                mlflow.log_artifact(str(reports_dir / "local_explanation_sample.json"), artifact_path="explainability")
+        else:
+            with mlflow.start_run(run_name="TreeSHAP_Explainability"):
+                mlflow.log_artifact(shap_results["plot_path"], artifact_path="explainability")
+                mlflow.log_artifact(str(reports_dir / "global_feature_importance.json"), artifact_path="explainability")
+                mlflow.log_artifact(str(reports_dir / "local_explanation_sample.json"), artifact_path="explainability")
+    except Exception as e:
+        logger.warning(f"Could not log to existing run {run_id} ({e}); starting a new MLflow run for explainability.")
+        with mlflow.start_run(run_name="TreeSHAP_Explainability"):
             mlflow.log_artifact(shap_results["plot_path"], artifact_path="explainability")
             mlflow.log_artifact(str(reports_dir / "global_feature_importance.json"), artifact_path="explainability")
             mlflow.log_artifact(str(reports_dir / "local_explanation_sample.json"), artifact_path="explainability")

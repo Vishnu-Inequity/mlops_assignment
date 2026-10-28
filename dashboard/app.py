@@ -6,7 +6,14 @@ and Governance Monitoring.
 DISCLAIMER: ACADEMIC DECISION-SUPPORT PROTOTYPE ONLY.
 NOT A VALIDATED CLINICAL DIAGNOSTIC TOOL.
 """
+import sys
 from pathlib import Path
+
+# Ensure project root is in sys.path
+project_root = Path(__file__).resolve().parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
 import json
 import os
 import time
@@ -19,12 +26,6 @@ import plotly.graph_objects as go
 import streamlit as st
 from dotenv import load_dotenv
 
-# Optional Part 1 Postgres engine
-try:
-    from sqlalchemy import create_engine
-    HAS_SQLALCHEMY = True
-except ImportError:
-    HAS_SQLALCHEMY = False
 
 from src.data.loader import categorize_icd9, load_config
 from src.features.pipeline import transform_data, get_transformed_feature_names
@@ -237,14 +238,6 @@ CLINICAL_PRESETS = {
 # ==============================================================================
 # Header & Navigation
 # ==============================================================================
-st.markdown("""
-<div class="disclaimer-banner">
-    ⚠️ <strong>ACADEMIC DECISION-SUPPORT PROTOTYPE ONLY</strong><br>
-    This application is an educational prototype developed for individual MLOps coursework.
-    Risk scores and TreeSHAP attributions are for decision-support exploration only.
-    It is <strong>NOT</strong> a certified clinical diagnostic device and must <strong>NOT</strong> be used for direct patient triaging or medical diagnosis.
-</div>
-""", unsafe_allow_html=True)
 
 # Sidebar Navigation
 st.sidebar.title("🏥 Navigation")
@@ -252,8 +245,7 @@ nav_choice = st.sidebar.radio(
     "Select View:",
     [
         "🔮 Real-Time Clinical Decision Support",
-        "📈 Model Governance & Performance",
-        "📊 Population Cohort Analytics (Part 1)"
+        "📈 Model Governance & Performance"
     ]
 )
 
@@ -572,108 +564,3 @@ elif nav_choice == "📈 Model Governance & Performance":
     else:
         st.caption("No serving requests logged yet.")
 
-# ==============================================================================
-# VIEW 3: POPULATION COHORT ANALYTICS (PART 1)
-# ==============================================================================
-elif nav_choice == "📊 Population Cohort Analytics (Part 1)":
-    st.title("📊 Historical Population Analytics (Part 1)")
-    st.write("Exploratory and descriptive clinical cohorts from PostgreSQL warehouse.")
-
-    if not HAS_SQLALCHEMY:
-        st.warning("SQLAlchemy is not available in the current environment to connect to PostgreSQL.")
-        st.stop()
-
-    def get_postgres_engine():
-        host = os.getenv("POSTGRES_HOST", "localhost")
-        port = os.getenv("POSTGRES_PORT", "5433") # Port 5433 mapped in docker-compose
-        db = os.getenv("POSTGRES_DB", "hospital_db")
-        user = os.getenv("POSTGRES_USER", "airflow")
-        password = os.getenv("POSTGRES_PASSWORD", "airflow")
-        return create_engine(f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{db}")
-
-    try:
-        engine = get_postgres_engine()
-        # Test connection
-        with engine.connect() as conn:
-            pass
-
-        age_groups = pd.read_sql("SELECT DISTINCT age_group FROM curated.patients WHERE age_group IS NOT NULL ORDER BY age_group", engine)['age_group'].tolist()
-        genders = pd.read_sql("SELECT DISTINCT gender FROM curated.patients WHERE gender IS NOT NULL ORDER BY gender", engine)['gender'].tolist()
-        races = pd.read_sql("SELECT DISTINCT race FROM curated.patients WHERE race IS NOT NULL ORDER BY race", engine)['race'].tolist()
-
-        st.sidebar.header("Cohort Filters")
-        sel_age = st.sidebar.multiselect("Age Group", age_groups, default=age_groups)
-        sel_gender = st.sidebar.multiselect("Gender", genders, default=genders)
-        sel_race = st.sidebar.multiselect("Race", races, default=races)
-
-        where_clauses = []
-        if sel_age:
-            where_clauses.append(f"p.age_group IN ({', '.join([repr(x) for x in sel_age])})")
-        if sel_gender:
-            where_clauses.append(f"p.gender IN ({', '.join([repr(x) for x in sel_gender])})")
-        if sel_race:
-            where_clauses.append(f"p.race IN ({', '.join([repr(x) for x in sel_race])})")
-
-        where_sql = "WHERE " + " AND ".join(where_clauses) if where_clauses else "WHERE 1=1"
-
-        kpi_query = f"""
-        SELECT
-            COUNT(DISTINCT p.patient_surrogate_key) AS unique_patients,
-            COUNT(a.encounter_surrogate_key) AS total_admissions,
-            ROUND(AVG(a.length_of_stay), 2) AS avg_length_of_stay,
-            ROUND(AVG(ps.number_diagnoses), 2) AS avg_diagnoses_per_encounter,
-            ROUND(SUM(CASE WHEN r.is_readmitted THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(a.encounter_surrogate_key), 0), 2) AS overall_readmission_rate
-        FROM curated.admissions a
-        JOIN curated.patients p ON a.patient_surrogate_key = p.patient_surrogate_key
-        JOIN curated.patient_summary ps ON a.encounter_surrogate_key = ps.encounter_surrogate_key
-        JOIN curated.readmissions r ON a.encounter_surrogate_key = r.encounter_surrogate_key
-        {where_sql}
-        """
-        kpis = pd.read_sql(kpi_query, engine)
-
-        if not kpis.empty and kpis['unique_patients'].iloc[0] > 0:
-            c1, c2, c3, c4, c5 = st.columns(5)
-            c1.metric("Unique Patients", f"{kpis['unique_patients'].iloc[0]:,}")
-            c2.metric("Total Admissions", f"{kpis['total_admissions'].iloc[0]:,}")
-            c3.metric("Readmission Rate", f"{kpis['overall_readmission_rate'].iloc[0]}%")
-            c4.metric("Avg Length of Stay", f"{kpis['avg_length_of_stay'].iloc[0]} days")
-            c5.metric("Avg Diagnoses", f"{kpis['avg_diagnoses_per_encounter'].iloc[0]}")
-
-            st.divider()
-            col_l, col_r = st.columns(2)
-
-            with col_l:
-                age_query = f"""
-                SELECT p.age_group, COUNT(a.encounter_surrogate_key) AS total_admissions,
-                       ROUND(SUM(CASE WHEN r.is_readmitted THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(a.encounter_surrogate_key), 0), 2) AS readmission_rate
-                FROM curated.admissions a
-                JOIN curated.patients p ON a.patient_surrogate_key = p.patient_surrogate_key
-                JOIN curated.readmissions r ON a.encounter_surrogate_key = r.encounter_surrogate_key
-                {where_sql}
-                GROUP BY p.age_group ORDER BY p.age_group
-                """
-                age_df = pd.read_sql(age_query, engine)
-                fig_age = px.bar(age_df, x="age_group", y="readmission_rate", text="readmission_rate",
-                                 title="Readmission Rate by Age Bracket (%)",
-                                 labels={"age_group": "Age Bracket", "readmission_rate": "Readmission Rate (%)"})
-                fig_age.update_traces(texttemplate='%{text:.2f}%', textposition='outside')
-                st.plotly_chart(fig_age, use_container_width=True)
-
-            with col_r:
-                los_query = f"""
-                SELECT a.length_of_stay, COUNT(a.encounter_surrogate_key) AS admission_count
-                FROM curated.admissions a
-                JOIN curated.patients p ON a.patient_surrogate_key = p.patient_surrogate_key
-                JOIN curated.readmissions r ON a.encounter_surrogate_key = r.encounter_surrogate_key
-                {where_sql}
-                GROUP BY a.length_of_stay ORDER BY a.length_of_stay
-                """
-                los_df = pd.read_sql(los_query, engine)
-                fig_los = px.bar(los_df, x="length_of_stay", y="admission_count",
-                                 title="Length of Stay Distribution (Days)",
-                                 labels={"length_of_stay": "Days in Hospital", "admission_count": "Admissions"})
-                st.plotly_chart(fig_los, use_container_width=True)
-
-    except Exception as e:
-        st.info(f"PostgreSQL warehouse is currently offline or unreachable ({e}).")
-        st.caption("Start PostgreSQL using 'docker compose up -d postgres' to access historical cohort queries.")

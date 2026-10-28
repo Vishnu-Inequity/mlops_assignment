@@ -115,7 +115,7 @@ def load_model_by_alias(model_name: str = "HospitalReadmissionClassifier", alias
     Returns model, calibrator, decision threshold, preprocessor, and version metadata.
     """
     version_val = "1"
-    tags_val = {}
+    tags_val = {"disclaimer": "Academic decision-support prototype only. Not for clinical diagnostic use."}
     desc_val = "Academic decision-support prototype"
     model_source_path = Path("models/best_model.joblib")
 

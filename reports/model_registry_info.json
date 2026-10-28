@@ -1,19 +1,19 @@
 {
   "model_name": "HospitalReadmissionClassifier",
-  "version": 3,
+  "version": 2,
   "aliases": [
     "production",
     "champion",
     "staging"
   ],
-  "run_id": "7dfffaef14e04a038a77b5d637b1bee0",
-  "description": "Algorithm: XGBoost | Screening Recall: 0.615 | Precision: 0.1497 | ROC-AUC: 0.6273 | Brier Score: 0.0973 | ECE: 0.006 | Decision Threshold: 0.1 | Data: UCI Diabetes 130-US (anti-leakage grouped split)",
+  "run_id": null,
+  "description": "Algorithm: XGBoost | Screening Recall: 0.6198 | Precision: 0.1495 | ROC-AUC: 0.6285 | Brier Score: 0.0973 | ECE: 0.006 | Decision Threshold: 0.1 | Data: UCI Diabetes 130-US (anti-leakage grouped split)",
   "tags": {
     "model_type": "XGBoost",
     "data_version": "v1.0_anti_leakage_grouped",
-    "recall_test": "0.615",
-    "precision_test": "0.1497",
-    "roc_auc_test": "0.6273",
+    "recall_test": "0.6198",
+    "precision_test": "0.1495",
+    "roc_auc_test": "0.6285",
     "brier_score_test": "0.0973",
     "decision_threshold": "0.1",
     "disclaimer": "Academic decision-support prototype only. Not for clinical diagnostic use."
